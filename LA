@@ -1,0 +1,296 @@
+#include <iostream>
+#include <cstring>
+#include <cstdio>
+#include <ctype.h>
+#include <cstdlib>
+#include <vector>
+#include <stack>
+#include <algorithm>
+
+using namespace std;
+
+enum type_of_lex {
+	LEX_NULL,      /*0*/
+	LEX_AND, LEX_BEGIN, LEX_BOOL, LEX_DO, LEX_ELSE, LEX_END, LEX_IF, LEX_FALSE, LEX_INT, /*9*/
+	LEX_NOT, LEX_OR, LEX_PROGRAM, LEX_READ, LEX_THEN, LEX_TRUE, LEX_VAR, LEX_WHILE, LEX_WRITE, /*18*/
+	LEX_FIN,       /*19*/
+	LEX_SEMICOLON, LEX_COMMA, LEX_COLON, LEX_ASSIGN, LEX_LPAREN, LEX_RPAREN, LEX_EQ, LEX_LSS, /*27*/
+	LEX_GTR, LEX_PLUS, LEX_MINUS, LEX_TIMES, LEX_SLASH, LEX_LEQ, LEX_NEQ, LEX_GEQ, /*35*/
+	LEX_NUM,       /*36*/
+	LEX_ID,        /*37*/
+	LEX_STRING, LEX_CONTINUE,/* LEX_UNMINUS, LEX_UNPLUS,*/ /* Дополнительные лексемы для реализации 21 варианта*/
+};
+
+class Lex { /* <Тип лексемы, значение лексемы> */
+	type_of_lex t_lex;
+	int v_lex;
+public:
+	Lex(type_of_lex t = LEX_NULL, int v = 0) { /* Конструктор "по умолчанию" */
+		t_lex = t; v_lex = v;
+	}
+	type_of_lex get_type() { /* возврат типа лексемы */
+		return t_lex;
+	}
+	int get_value() { /* возврат значения лексемы */
+		return v_lex;
+	}
+
+	friend ostream& operator << (ostream &s, Lex l) { /* Переопределение оператора <<  (вывод типа <Тип лексемы, значение лексемы>*/
+		s << '(' << l.t_lex << ',' << l.v_lex << ");";
+		return s;
+	}
+};
+
+class Ident {
+	char * name; /* Лексема */
+	bool declare; /* Заявление */
+	type_of_lex type;
+	bool assign; /* Назначение */
+	int value; /* Значение лексемы */
+public:
+	Ident() { /* Конструктор по "умолчанию" */
+		declare = false;
+		assign = false;
+	}
+	char *get_name() { /* Возврат лексемы */
+		return name;
+	}
+	void put_name(const char *n) { /* Создание ячейки лексемы */
+		name = new char[strlen(n) + 1]; /* Увеличение ячейки на 1 */
+		strcpy_s (name,strlen(n)+1, n); //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	}
+	bool get_declare() {
+		return declare;
+	}
+	void put_declare() {
+		declare = true;
+	}
+
+	type_of_lex get_type() {
+		return type;
+	}
+	void put_type(type_of_lex t) { /* Присваивание типы лексемы */
+		type = t;
+	}
+	bool get_assign() {
+		return assign;
+	}
+	void put_assign() {
+		assign = true;
+	}
+	int get_value() {
+		return value;
+	}
+	void put_value(int v) {
+		value = v;
+	}
+};
+
+class tabl_ident {
+	Ident * p; /* Ссылка на класс */
+	int size;
+	int top;
+public:
+	tabl_ident(int max_size) { /* Конструктор */
+		p = new Ident[size = max_size];
+		top = 1;
+	}
+	~tabl_ident() { /* Деструктор */
+		delete[]p;
+	}
+	Ident& operator[] (int k) {
+		return p[k];
+	}
+	int put(const char *buf);
+};
+
+int tabl_ident::put(const char *buf) {
+	for (int j = 1; j < top; ++j) {
+		if (!strcmp(buf, p[j].get_name())) {
+			return j;
+		}
+	}
+	p[top].put_name(buf);
+	++top;
+	return top - 1;
+}
+
+class Scanner {
+	enum state { H, IDENT, NUMB, COM, ALE, DELIM, NEQ };
+	static const char * TW[]; /* Таблица слов*/
+	static type_of_lex words[];
+	static const char * TD[]; /* Таблица символов */
+	static type_of_lex dlms[];
+	state CS; /* Состояние? */
+	FILE * fp;
+	char c;
+	char buf[80];
+	int buf_top;
+
+	void clear() {
+		buf_top = 0;
+		for (int j = 0; j < 80; ++j)
+			buf[j] = '\0';
+	}
+	void add() {
+		buf[buf_top++] = c; /* Добавление буквы */
+	}
+	int look(const char *buf, const char **list) {
+		int i = 0;
+		while (list[i]) {
+			if (!strcmp(buf, list[i])) { /* Поиск "совпадения" */
+				return i;
+			}
+			++i;
+		}
+		return 0;
+	}
+
+	void gc() {
+		c = fgetc(fp); /* Чтение следующего символа в файле*/
+	}
+public:
+	Lex get_lex();
+	Scanner(const char * program) {
+		//fp = fopen(program, "r");
+		fopen_s(&fp,program, "r"); //!!!!!!!!!!!!!!!!!!!!!!!!!
+		CS = H;
+		clear();
+		gc();
+	}
+};
+
+const char* Scanner::TW[] = { "", "and", "begin", "bool", "do", "else", "end", "if", "false", "int", "not", "or", "program", "read", "then", "true", "var", "while", "write", NULL , "string", "continue"};
+const char* Scanner::TD[] = { "",";","@", ",", ":", ":=", "(", ")", "=", "<", ">", "+", "-", "*", "/", "<=", "!=", ">=", NULL };
+
+
+tabl_ident TID(100);
+
+type_of_lex Scanner::words[] = { LEX_NULL, LEX_AND, LEX_BEGIN, LEX_BOOL, LEX_DO, LEX_ELSE, LEX_END, LEX_IF, LEX_FALSE,
+ LEX_INT, LEX_NOT, LEX_OR, LEX_PROGRAM, LEX_READ, LEX_THEN, LEX_TRUE, LEX_VAR, LEX_WHILE, LEX_WRITE, LEX_NULL ,LEX_STRING, LEX_CONTINUE/*LEX_UNMINUS, LEX_UNPLUS */};
+
+type_of_lex Scanner::dlms[] = { LEX_NULL,LEX_FIN,LEX_SEMICOLON,LEX_COMMA,LEX_COLON,LEX_ASSIGN,
+ LEX_LPAREN,LEX_RPAREN,LEX_EQ,LEX_LSS,LEX_GTR,LEX_PLUS,LEX_MINUS,LEX_TIMES,LEX_SLASH,LEX_LEQ,LEX_NEQ,LEX_GEQ,LEX_NULL };
+
+Lex Scanner::get_lex() {
+	int d, j;
+	CS = H;
+	do {
+		switch (CS) {
+		case H:
+			if (c == ' ' || c == '\n' || c == '\r' || c == '\t') {
+				gc();
+			}
+			else if (isalpha(c)) {
+				clear();
+				add();
+				gc();
+				CS = IDENT;
+			}
+			else if (isdigit(c)) {
+				d = c - '0';
+				gc();
+				CS = NUMB;
+			}
+			else if (c == '{') {
+				gc();
+				CS = COM;
+			}
+			else if (c == ':' || c == '<' || c == '>') {
+				clear();
+				add();
+				gc();
+				CS = ALE;
+			}
+			else if (c == '@') {
+				return Lex(LEX_FIN);
+			}
+
+			else if (c == '!') {
+				clear();
+				add();
+				gc();
+				CS = NEQ;
+			}
+			else {
+				CS = DELIM;
+			}
+			break;
+		case IDENT:
+			if (isalpha(c) || isdigit(c)) {
+				add();
+				gc();
+			}
+			else if (j = look(buf, TW)) {
+				return Lex(words[j], j);
+			}
+			else {
+				j = TID.put(buf);
+				return Lex(LEX_ID, j);
+			}
+			break;
+		case NUMB:
+			if (isdigit(c)) {
+				d = d * 10 + (c - '0');
+				gc();
+			}
+			else {
+				return Lex(LEX_NUM, d);
+			}
+			break;
+		case COM:
+			if (c == '}') {
+				gc();
+				CS = H;
+			}
+			else if (c == '@' || c == '{') {
+				throw c;
+			}
+			else {
+				gc();
+			}
+			break;
+		case ALE:
+			if (c == '=') {
+				add();
+				gc();
+				j = look(buf, TD);
+				return Lex(dlms[j], j);
+			}
+			else {
+				j = look(buf, TD);
+				return Lex(dlms[j], j);
+			}
+			break;
+		case NEQ:
+			if (c == '=') {
+				add();
+				gc();
+				j = look(buf, TD);
+				return Lex(LEX_NEQ, j);
+			}
+			else {
+				throw '!';
+			}
+			break;
+		case DELIM:
+			clear();
+			add();
+			if (j = look(buf, TD)) {
+				gc();
+				return Lex(dlms[j], j);
+			}
+			else {
+				throw c;
+			}
+			break;
+		} // end switch
+	} while (true);
+}
+
+int main() {
+	Scanner fd("Test");
+	if (fd.get_lex().get_type() != LEX_FIN)
+		cout << fd.get_lex();
+	return 0;
+}
