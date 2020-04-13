@@ -1,0 +1,297 @@
+#include <iostream>
+#include <cstring>
+#include <cstdio>
+#include <ctype.h>
+#include <cstdlib>
+#include <vector>
+#include <stack>
+#include <algorithm>
+
+using namespace std;
+
+enum type_of_lex {
+	LEX_NULL,      
+	LEX_AND, LEX_BEGIN, LEX_BOOL, LEX_DO, LEX_ELSE, LEX_END, LEX_IF, LEX_FALSE, LEX_INT, 
+	LEX_NOT, LEX_OR, LEX_PROGRAM, LEX_READ, LEX_THEN, LEX_TRUE, LEX_VAR, LEX_WHILE, LEX_WRITE, 
+	LEX_FIN,      
+	LEX_SEMICOLON, LEX_COMMA, LEX_COLON, LEX_ASSIGN, LEX_LPAREN, LEX_RPAREN, LEX_EQ, LEX_LSS, 
+	LEX_GTR, LEX_PLUS, LEX_MINUS, LEX_TIMES, LEX_SLASH, LEX_LEQ, LEX_NEQ, LEX_GEQ, 
+	LEX_NUM,      
+	LEX_ID,        
+	LEX_STRING, LEX_CONTINUE, /* Дополнительные лексемы для реализации 21 варианта*/
+};
+
+class Lex { /* <Тип лексемы, значение лексемы> */
+	type_of_lex t_lex;
+	int v_lex;
+public:
+	Lex(type_of_lex t = LEX_NULL, int v = 0) { /* Конструктор "по умолчанию" */
+		t_lex = t; v_lex = v;
+	}
+	type_of_lex get_type() { /* возврат типа лексемы */
+		return t_lex;
+	}
+	int get_value() { /* возврат значения лексемы */
+		return v_lex;
+	}
+
+	friend ostream& operator << (ostream &s, Lex l) { /* Переопределение оператора <<  (вывод типа <Тип лексемы, значение лексемы>*/
+		s << '(' << l.t_lex << ',' << l.v_lex << ");";
+		return s;
+	}
+};
+
+class ident {
+	char * name; 
+	bool declare; 
+	type_of_lex type;
+	bool assign; 
+	int value; 
+public:
+	ident() { /* Конструктор по "умолчанию" */
+		declare = false;
+		assign = false;
+	}
+	char *get_name() { /* Возврат лексемы */
+		return name;
+	}
+	void put_name(const char *n) { /* Создание ячейки лексемы */
+		name = new char[strlen(n) + 1];
+		strcpy_s (name,strlen(n)+1, n); 
+	}
+	bool get_declare() { /* Возврат "состояния" */
+		return declare;
+	}
+	void put_declare() { /* Присваивание "состояния" */
+		declare = true;
+	}
+
+	type_of_lex get_type() { /* Возврат типа лексемы */
+		return type;
+	}
+	void put_type(type_of_lex t) { /* Присваивание типы лексемы */
+		type = t;
+	}
+	bool get_assign() {
+		return assign;
+	}
+	void put_assign() {
+		assign = true;
+	}
+	int get_value() { /* Возврат значения лексемы */
+		return value;
+	}
+	void put_value(int v) { /* Присваивание значение лексемы */
+		value = v;
+	}
+};
+
+class tabl_ident {
+	ident * p; /* Ссылка на класс */
+	int size;
+	int top;
+public:
+	tabl_ident(int max_size) { /* Конструктор */
+		p = new ident[size = max_size];
+		top = 1;
+	}
+	~tabl_ident() { /* Деструктор */
+		delete[]p;
+	}
+	ident& operator[] (int k) { /* Перегрузка оператора [] */
+		return p[k];
+	}
+	int put(const char *buf); /* Объявление метода класса */
+};
+
+int tabl_ident::put(const char *buf) { /* Реализация метода класса tabl_ident  */
+	for (int j = 1; j < top; ++j) {
+		if (!strcmp(buf, p[j].get_name())) {
+			return j;
+		}
+	}
+	p[top].put_name(buf);
+	++top;
+	return top - 1;
+}
+
+class Scanner { /* Класс реализующий считывание и идентификацию литер */
+	enum state { H, IDENT, NUMB, COM, ALE, DELIM, NEQ };
+	static const char * TW[]; /* Таблица слов*/
+	static type_of_lex words[];
+	static const char * TD[]; /* Таблица символов */
+	static type_of_lex dlms[];
+	state CS; /* Состояние */
+	FILE * file_in_program;
+	char c;
+	char buf[80];
+	int buf_top;
+
+	void clear() { /* "очистка" (чтобы не полуить в итоге не верное знаечние из-за "мусора"  */
+		buf_top = 0;
+		for (int j = 0; j < 80; ++j)
+			buf[j] = '\0';
+	}
+	void add() { /* Добавление буквы */
+		buf[buf_top++] = c; 
+	}
+	int look(const char *buf, const char **list) { /* Поиск "совпадения" */
+		int i = 0;
+		while (list[i]) {
+			if (!strcmp(buf, list[i])) { 
+				return i;
+			}
+			++i;
+		}
+		return 0;
+	}
+
+	void gc() { /* Чтение следующего символа в файле*/
+		c = fgetc(file_in_program); 
+	}
+public:
+	Lex get_lex(); /* Объявление метода класса */
+	Scanner(const char * program) { /* Открытие файла на чтение и присвоение изначаьлных параметров */
+		fopen_s(&file_in_program,program, "r"); 
+		CS = H;
+		clear();
+		gc();
+	}
+};
+
+const char* Scanner::TW[] = { "", "and", "begin", "bool", "do", "else", "end", "if", "false", "int", "not", "or", "program", "read", "then", "true", "var", "while", "write", NULL , "string", "continue"};
+const char* Scanner::TD[] = { "",";","@", ",", ":", ":=", "(", ")", "=", "<", ">", "+", "-", "*", "/", "<=", "!=", ">=", NULL };
+
+
+tabl_ident TID(100);
+
+type_of_lex Scanner::words[] = { LEX_NULL, LEX_AND, LEX_BEGIN, LEX_BOOL, LEX_DO, LEX_ELSE, LEX_END, LEX_IF, LEX_FALSE,
+ LEX_INT, LEX_NOT, LEX_OR, LEX_PROGRAM, LEX_READ, LEX_THEN, LEX_TRUE, LEX_VAR, LEX_WHILE, LEX_WRITE, LEX_NULL ,LEX_STRING, LEX_CONTINUE};
+
+type_of_lex Scanner::dlms[] = { LEX_NULL,LEX_FIN,LEX_SEMICOLON,LEX_COMMA,LEX_COLON,LEX_ASSIGN,
+ LEX_LPAREN,LEX_RPAREN,LEX_EQ,LEX_LSS,LEX_GTR,LEX_PLUS,LEX_MINUS,LEX_TIMES,LEX_SLASH,LEX_LEQ,LEX_NEQ,LEX_GEQ,LEX_NULL };
+
+Lex Scanner::get_lex() { /* Реализация метода класса Scanner (распределение по типам) */
+	int d, j;
+	/* Поняла что тут можно в принципе убрать строку CS=H, тк при открытии файла у нас в функции Scaner(const char) первоначальное значение задается, 
+	при ошибках (это в следующих этапах реализовывается) будет отдельная функция вывода ошибок где можно также позаботиться о правильное передаче состояния,
+	а во всей программе не бует циклов (те мы не будем открывать 2 разных файла, так что можем не беспокоиться с каким состоянием завершиться "обхлд"  */
+	do {
+		switch (CS) {
+		case H: /* Состояние "пустое" */
+			if (c == ' ' || c == '\n' || c == '\r' || c == '\t') {
+				gc();
+			}
+			else if (isalpha(c)) {
+				clear();
+				add();
+				gc();
+				CS = IDENT;
+			}
+			else if (isdigit(c)) {
+				d = c - '0';
+				gc();
+				CS = NUMB;
+			}
+			else if (c == '{') {
+				gc();
+				CS = COM;
+			}
+			else if (c == ':' || c == '<' || c == '>') {
+				clear();
+				add();
+				gc();
+				CS = ALE;
+			}
+			else if (c == '@') {
+				return Lex(LEX_FIN);
+			}
+
+			else if (c == '!') {
+				clear();
+				add();
+				gc();
+				CS = NEQ;
+			}
+			else {
+				CS = DELIM;
+			}
+			break;
+		case IDENT: /* Символ - буква */
+			if (isalpha(c) || isdigit(c)) {
+				add();
+				gc();
+			}
+			else if (j = look(buf, TW)) {
+				return Lex(words[j], j);
+			}
+			else {
+				j = TID.put(buf);
+				return Lex(LEX_ID, j);
+			}
+			break;
+		case NUMB: /* Символ - цифра */
+			if (isdigit(c)) {
+				d = d * 10 + (c - '0');
+				gc();
+			}
+			else {
+				return Lex(LEX_NUM, d);
+			}
+			break;
+		case COM: /* состояние после начала комментария */
+			if (c == '}') {
+				gc();
+				CS = H;
+			}
+			else if (c == '@' || c == '{') {
+				throw c;
+			}
+			else {
+				gc();
+			}
+			break;
+		case ALE: /* Символы :, <, > */
+			if (c == '=') {
+				add();
+				gc();
+				j = look(buf, TD);
+				return Lex(dlms[j], j);
+			}
+			else {
+				j = look(buf, TD);
+				return Lex(dlms[j], j);
+			}
+			break;
+		case NEQ: /* отрицание */
+			if (c == '=') {
+				add();
+				gc();
+				j = look(buf, TD);
+				return Lex(LEX_NEQ, j);
+			}
+			else {
+				throw '!';
+			}
+			break;
+		case DELIM: /* Арифметические операции */
+			clear();
+			add();
+			if (j = look(buf, TD)) {
+				gc();
+				return Lex(dlms[j], j);
+			}
+			else {
+				throw c;
+			}
+			break;
+		} 
+	} while (true);
+}
+
+int main() {
+	Scanner file_descriptor("Test");
+	if (file_descriptor.get_lex().get_type() != LEX_FIN)
+		cout << file_descriptor.get_lex();
+	return 0;
+}
