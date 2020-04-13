@@ -9,7 +9,7 @@
 
 using namespace std;
 
-enum type_of_lex {
+enum TypeOfLex {
 	LEX_NULL,      
 	LEX_AND, LEX_BEGIN, LEX_BOOL, LEX_DO, LEX_ELSE, LEX_END, LEX_IF, LEX_FALSE, LEX_INT, 
 	LEX_NOT, LEX_OR, LEX_PROGRAM, LEX_READ, LEX_THEN, LEX_TRUE, LEX_VAR, LEX_WHILE, LEX_WRITE, 
@@ -22,13 +22,13 @@ enum type_of_lex {
 };
 
 class Lex { /* <Тип лексемы, значение лексемы> */
-	type_of_lex t_lex;
+	TypeOfLex t_lex;
 	int v_lex;
 public:
-	Lex(type_of_lex t = LEX_NULL, int v = 0) { /* Конструктор "по умолчанию" */
+	Lex(TypeOfLex t = LEX_NULL, int v = 0) { /* Конструктор "по умолчанию" */
 		t_lex = t; v_lex = v;
 	}
-	type_of_lex get_type() { /* возврат типа лексемы */
+	TypeOfLex get_type() { /* возврат типа лексемы */
 		return t_lex;
 	}
 	int get_value() { /* возврат значения лексемы */
@@ -41,14 +41,14 @@ public:
 	}
 };
 
-class ident {
+class Ident {
 	char * name; 
 	bool declare; 
-	type_of_lex type;
+	TypeOfLex type;
 	bool assign; 
 	int value; 
 public:
-	ident() { /* Конструктор по "умолчанию" */
+	Ident() { /* Конструктор по "умолчанию" */
 		declare = false;
 		assign = false;
 	}
@@ -66,10 +66,10 @@ public:
 		declare = true;
 	}
 
-	type_of_lex get_type() { /* Возврат типа лексемы */
+	TypeOfLex get_type() { /* Возврат типа лексемы */
 		return type;
 	}
-	void put_type(type_of_lex t) { /* Присваивание типы лексемы */
+	void put_type(TypeOfLex t) { /* Присваивание типы лексемы */
 		type = t;
 	}
 	bool get_assign() {
@@ -86,25 +86,25 @@ public:
 	}
 };
 
-class tabl_ident {
-	ident * p; /* Ссылка на класс */
+class TablIdent {
+	Ident * p; /* Ссылка на класс */
 	int size;
 	int top;
 public:
-	tabl_ident(int max_size) { /* Конструктор */
-		p = new ident[size = max_size];
+	TablIdent(int max_size) { /* Конструктор */
+		p = new Ident[size = max_size];
 		top = 1;
 	}
-	~tabl_ident() { /* Деструктор */
+	~TablIdent() { /* Деструктор */
 		delete[]p;
 	}
-	ident& operator[] (int k) { /* Перегрузка оператора [] */
+	Ident& operator[] (int k) { /* Перегрузка оператора [] */
 		return p[k];
 	}
 	int put(const char *buf); /* Объявление метода класса */
 };
 
-int tabl_ident::put(const char *buf) { /* Реализация метода класса tabl_ident  */
+int TablIdent::put(const char *buf) { /* Реализация метода класса tabl_ident  */
 	for (int j = 1; j < top; ++j) {
 		if (!strcmp(buf, p[j].get_name())) {
 			return j;
@@ -118,9 +118,9 @@ int tabl_ident::put(const char *buf) { /* Реализация метода кл
 class Scanner { /* Класс реализующий считывание и идентификацию литер */
 	enum state { H, IDENT, NUMB, COM, ALE, DELIM, NEQ };
 	static const char * TW[]; /* Таблица слов*/
-	static type_of_lex words[];
+	static TypeOfLex words[];
 	static const char * TD[]; /* Таблица символов */
-	static type_of_lex dlms[];
+	static TypeOfLex dlms[];
 	state CS; /* Состояние */
 	FILE * file_in_program;
 	char c;
@@ -163,12 +163,12 @@ const char* Scanner::TW[] = { "", "and", "begin", "bool", "do", "else", "end", "
 const char* Scanner::TD[] = { "",";","@", ",", ":", ":=", "(", ")", "=", "<", ">", "+", "-", "*", "/", "<=", "!=", ">=", NULL };
 
 
-tabl_ident TID(100);
+TablIdent TID(100);
 
-type_of_lex Scanner::words[] = { LEX_NULL, LEX_AND, LEX_BEGIN, LEX_BOOL, LEX_DO, LEX_ELSE, LEX_END, LEX_IF, LEX_FALSE,
+TypeOfLex Scanner::words[] = { LEX_NULL, LEX_AND, LEX_BEGIN, LEX_BOOL, LEX_DO, LEX_ELSE, LEX_END, LEX_IF, LEX_FALSE,
  LEX_INT, LEX_NOT, LEX_OR, LEX_PROGRAM, LEX_READ, LEX_THEN, LEX_TRUE, LEX_VAR, LEX_WHILE, LEX_WRITE, LEX_NULL ,LEX_STRING, LEX_CONTINUE};
 
-type_of_lex Scanner::dlms[] = { LEX_NULL,LEX_FIN,LEX_SEMICOLON,LEX_COMMA,LEX_COLON,LEX_ASSIGN,
+TypeOfLex Scanner::dlms[] = { LEX_NULL,LEX_FIN,LEX_SEMICOLON,LEX_COMMA,LEX_COLON,LEX_ASSIGN,
  LEX_LPAREN,LEX_RPAREN,LEX_EQ,LEX_LSS,LEX_GTR,LEX_PLUS,LEX_MINUS,LEX_TIMES,LEX_SLASH,LEX_LEQ,LEX_NEQ,LEX_GEQ,LEX_NULL };
 
 Lex Scanner::get_lex() { /* Реализация метода класса Scanner (распределение по типам) */
