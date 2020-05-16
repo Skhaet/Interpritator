@@ -1,0 +1,1312 @@
+#include <iostream>
+#include <cstring>
+#include <ctype.h>
+#include <ostream>
+#include <stdio.h>
+#include <string>
+#include <vector>
+#include <typeinfo>
+#include <sstream>
+#include <cstdlib>
+
+using namespace std;
+
+enum TypeOfLex {
+	LEX_NULL, 
+	LEX_PROG, LEX_INT, LEX_STR, LEX_IF, LEX_ELSE, LEX_WHILE, LEX_D0,
+	LEX_READ, LEX_WRITE, LEX_NOT, LEX_AND, LEX_OR, 
+	LEX_CONTINUE, LEX_FOR, 
+	LEX_BOOL, LEX_TRUE, LEX_FALSE, 
+	LEX_FIN, 
+	LEX_CURL, LEX_CURR, LEX_EQ, LEX_PLUS, LEX_MINUS, LEX_BRL, LEX_BRR, LEX_SEMICOLON, LEX_MUL, LEX_DIV, 
+	LEX_L, LEX_G, LEX_LE, LEX_GE, 
+	LEX_EQEQ, LEX_NOTEQ, 
+	LEX_DECIMAL, LEX_DOG, 
+	LEX_NUM, LEX_ID, 
+	LEX_STRING, 
+	LEX_MINUS_UNAR,
+	POLIZ_LABEL, POLIZ_ADDRESS, POLIZ_GO, POLIZ_FGO 
+};
+
+const char* lex_parts[] = {
+	 "LEX_NULL",
+	"LEX_PROG", "LEX_INT", "LEX_STR", "LEX_IF", "LEX_ELSE", "LEX_WHILE", "LEX_D0",
+	"LEX_READ", "LEX_WRITE", "LEX_NOT", "LEX_AND", "LEX_OR",
+	"LEX_CONTINUE", "LEX_FOR",
+	"LEX_BOOL", "LEX_TRUE", "LEX_FALSE",
+	"LEX_FIN",
+	"LEX_CURL", "LEX_CURR", "LEX_EQ", "LEX_PLUS", "LEX_MINUS", "LEX_BRL", "LEX_BRR", "LEX_SEMICOLON", "LEX_MUL", "LEX_DIV",
+	"LEX_L", "LEX_G", "LEX_LE", "LEX_GE",
+	"LEX_EQEQ", "LEX_NOTEQ",
+	"LEX_DECIMAL", "LEX_DOG",
+	"LEX_NUM", "LEX_ID",
+	"LEX_STRING",
+	"LEX_MINUS_UNAR",
+	"POLIZ_LABEL", "POLIZ_ADDRESS", "POLIZ_GO", "POLIZ_FGO" 
+};
+
+string type_to_str(TypeOfLex temporary_current_type) {
+	stringstream outs;
+	switch (temporary_current_type) {
+	case LEX_NULL: outs << "NULL"; break;
+	case LEX_PROG: outs << "Program"; break;
+	case LEX_INT: outs << "int"; break;
+	case LEX_STR: outs << "string"; break;
+	case LEX_IF: outs << "if"; break;
+	case LEX_ELSE: outs << "else"; break;
+	case LEX_WHILE: outs << "while"; break;
+	case LEX_D0: outs << "do"; break;
+	case LEX_CONTINUE: outs << "continue"; break;
+	case LEX_FOR: outs << "for"; break;
+	case LEX_READ: outs << "read"; break;
+	case LEX_WRITE: outs << "write"; break;
+	case LEX_NOT: outs << "not"; break;
+	case LEX_AND: outs << "and"; break;
+	case LEX_OR: outs << "or"; break;
+	case LEX_BOOL: outs << "boolean"; break;
+	case LEX_TRUE: outs << "true"; break;
+	case LEX_FALSE: outs << "false"; break;
+	case LEX_CURL: outs << "{"; break;
+	case LEX_CURR: outs << "}"; break;
+	case LEX_EQ: outs << "="; break;
+	case LEX_PLUS: outs << "+"; break;
+	case LEX_MINUS: outs << "-"; break;
+	case LEX_BRL: outs << "("; break;
+	case LEX_BRR: outs << ")"; break;
+	case LEX_SEMICOLON: outs << ";"; break;
+	case LEX_MUL: outs << "*"; break;
+	case LEX_DIV: outs << "/"; break;
+	case LEX_L: outs << "<"; break;
+	case LEX_G: outs << ">"; break;
+	case LEX_LE: outs << "<="; break;
+	case LEX_GE: outs << ">="; break;
+	case LEX_EQEQ: outs << "=="; break;
+	case LEX_NOTEQ: outs << "!="; break;
+	case LEX_DECIMAL: outs << ","; break;
+	case LEX_DOG: outs << "@"; break;
+	case LEX_NUM: outs << " = "; break;
+	case LEX_ID: outs << "ID"; break;
+	case LEX_STRING: outs << "STR"; break;
+	case LEX_MINUS_UNAR: outs << "LEX_MINUS_UNAR"; break;
+	case POLIZ_LABEL: outs << "POLIZ_LABEL"; break;
+	case POLIZ_ADDRESS: outs << "POLIZ_ADDRESS"; break;
+	case POLIZ_GO: outs << "POLIZ_GO"; break;
+	case POLIZ_FGO: outs << "POLIZ_FGO"; break;
+	case LEX_FIN: break;
+	}
+	return outs.str();
+}
+
+const char* TW[] = { "", "program", "int", "string", "if", "else", "while", "do", "continue", "for","read", "write", "not", "and", "or", "bool", "true", "false", NULL };
+const char* TD[] = { "", "{", "}", "=", "+", "-", "(", ")", ";", "*", "/", "<", ">", "<=", ">=", "==", "!=", ",", "@", "-", NULL };
+const char* TPZ[] = { "POLIZ_LABEL", "POLIZ_ADDRESS", "POLIZ_GO", "POLIZ_FGO" };
+
+TypeOfLex words[] = { LEX_NULL, LEX_PROG, LEX_INT, LEX_STR, LEX_IF, LEX_ELSE, LEX_WHILE, LEX_D0, LEX_CONTINUE, LEX_FOR, LEX_READ, LEX_WRITE, LEX_NOT, LEX_AND, LEX_OR,
+	LEX_BOOL, LEX_TRUE, LEX_FALSE, LEX_NULL };
+
+TypeOfLex dlms[] = { LEX_NULL, LEX_CURL, LEX_CURR, LEX_EQ, LEX_PLUS, LEX_MINUS, LEX_BRL, LEX_BRR, LEX_SEMICOLON, LEX_MUL, LEX_DIV, LEX_L, LEX_G, LEX_LE, LEX_GE, LEX_EQEQ,
+	LEX_NOTEQ, LEX_DECIMAL, LEX_DOG, LEX_MINUS_UNAR, LEX_NULL };
+
+TypeOfLex poliz_lexems[] = { POLIZ_LABEL, POLIZ_ADDRESS, POLIZ_GO, POLIZ_FGO };
+
+
+class Lex { /* <Тип лексемы, значение лексемы> */
+	TypeOfLex t_lex;
+	int v_lex;
+	string str_c;
+public:
+	Lex(TypeOfLex t = LEX_NULL, int v = 0, string s = "") { /* Конструктор "по умолчанию" */
+		t_lex = t; 
+		v_lex = v;
+		str_c = s;
+	}
+	Lex(int x) {
+		t_lex = LEX_NULL;
+		v_lex = x;
+		str_c = "";
+	}
+	TypeOfLex get_type() const { /* возврат типа лексемы */
+		return t_lex;
+	}
+	int get_value() const { /* возврат значения лексемы */
+		return v_lex;
+	}
+	void put_type(TypeOfLex new_type) {
+		t_lex = new_type;
+	}
+	string get_type_str() const { /* NEW! нахождение типа лексемы и возврат для печати программы (для проверки корректности работы 3его этапа) */
+		int size;
+		size = sizeof(dlms) / sizeof(TypeOfLex);
+		for (int i = 0; i < size; i++) {
+			if (t_lex == dlms[i])
+				return TD[i];
+		}
+		size = sizeof(words) / sizeof(TypeOfLex);
+		for (int i = 0; i < size; i++) {
+			if (t_lex == words[i])
+				return TW[i];
+		}
+		size = sizeof(poliz_lexems) / sizeof(TypeOfLex);
+		for (int i = 0; i < size; i++) {
+			if (t_lex == poliz_lexems[i])
+				return TPZ[i];
+		}
+		return "WARNING! Something went wrong (get_type_str())";
+	}
+	string get_value_str() const { /* NEW! необходимо для взаимодейтвия классов Lex и Ident  */
+		char str[20];
+		if (t_lex == LEX_STRING) {
+			return str_c;
+		}
+		if (t_lex == LEX_BOOL) {
+			if (v_lex == 0)
+				return "false";
+			else
+				return "true";
+		}
+		snprintf(str, 20, "%d", v_lex);
+		return str;
+	}
+	friend ostream& operator << (ostream &s, const Lex &l) { /* Переопределение оператора <<  (вывод типа <Тип лексемы, значение лексемы>*/
+		s << '(' << l.t_lex << ',' << l.v_lex << ");";
+		return s;
+	}
+};
+
+class Ident {
+	char * name; 
+	bool declare; 
+	TypeOfLex type;
+	bool assign; 
+	int value; 
+	string str_c;
+public:
+	Ident() { /* Конструктор по "умолчанию" */
+		declare = false;
+		assign = false;
+	}
+	char *get_name() { /* Возврат лексемы */
+		return name;
+	}
+	void put_name(const char *n) { /* Создание ячейки лексемы */
+		name = new char[strlen(n) + 1];
+		strcpy_s (name,strlen(n)+1, n); 
+	}
+	bool get_declare() { /* Возврат "состояния" */
+		return declare;
+	}
+	void put_declare() { /* Присваивание "состояния" */
+		declare = true;
+	}
+	TypeOfLex get_type() { /* Возврат типа лексемы */
+		return type;
+	}
+	void put_type(TypeOfLex t) { /* Присваивание типы лексемы */
+		type = t;
+	}
+	bool get_assign() {
+		return assign;
+	}
+	void put_assign() { /* Для внешнего взаимодействия методов класса с private членом*/
+		assign = true;
+	}
+	int get_value() { /* Возврат значения лексемы */
+		return value;
+	}
+	void put_value(int v) { /* Присваивание значение лексемы */
+		value = v;
+	}
+	string get_value_str(){
+		return str_c;
+	}
+	void put_value(const string &v){ /* Заполнение строковой константы */
+		str_c = v;
+	}
+	void asign_val(const Lex &curr_lex);
+	Lex gen_lex();
+};
+
+void Ident::asign_val(const Lex &curr_lex) { /* NEW! Работа со строками (отдельная ф-я тк внутри строки не нужно проверять правильность введенных символов */
+	TypeOfLex vlex = curr_lex.get_type();
+	if (type == LEX_INT) {
+		if (vlex == LEX_STRING)
+			throw curr_lex;
+		put_value(curr_lex.get_value());
+	}
+	else if (type == LEX_STRING) {
+		if (vlex != LEX_STRING) {
+			throw curr_lex;
+		}
+		put_value(curr_lex.get_value_str());
+		}
+	else if (type == LEX_BOOL){
+		if (vlex == LEX_STRING) {
+			throw curr_lex;
+		}
+		put_value(curr_lex.get_value() != 0);
+	}
+	put_assign();
+}
+
+Lex Ident::gen_lex() { //NEW! В стеке для преобразования (есть лежат операция и операнды, то отправляем на подсчет и закидываем обратно результат, если строка, то изменять ничего не нужно)
+	if (type == LEX_STRING) {
+		return Lex(LEX_STRING, 0, str_c);
+	}
+	return Lex(LEX_NUM, value);
+}
+
+class TablIdent {
+	Ident * p; 
+	int size;
+	int top;
+public:
+	TablIdent(int max_size) { /* Конструктор */
+		p = new Ident[size = max_size];
+		top = 1;
+	}
+	~TablIdent() { /* Деструктор */
+		delete[]p;
+	}
+	Ident& operator[] (int k) { /* Перегрузка оператора [] */
+		return p[k];
+	}
+	int put(const char *buf); /* Объявление метода класса  (добавление) */
+};
+
+int TablIdent::put(const char *buf) { /* Реализация метода класса tabl_ident  */
+	for (int j = 1; j < top; ++j) {
+		if (!strcmp(buf, p[j].get_name())) {
+			return j;
+		}
+	}
+	p[top].put_name(buf);
+	++top;
+	return top - 1;
+}
+
+TablIdent TID(100);
+
+enum state { H, IDENT, NUMB, COM1, COM, ALE, DELIM, NEQ, STR };
+state CS; 
+
+class Scanner { /* Класс реализующий считывание и идентификацию литер */
+	FILE * file_in_program;
+	char c;
+	char buf[80];
+	int buf_top;
+	int line;
+
+	void clear() { /* "очистка" (чтобы не полуить в итоге не верное знаечние из-за "мусора"  */
+		buf_top = 0;
+		for (int j = 0; j < 80; ++j)
+			buf[j] = '\0';
+	}
+	void add() { /* Добавление буквы */
+		buf[buf_top++] = c; 
+	}
+	int look(const char *buf, const char **list) { /* Поиск "совпадения" */
+		int i = 0;
+		while (list[i]) {
+			if (!strcmp(buf, list[i])) { 
+				return i;
+			}
+			++i;
+		}
+		return 0;
+	}
+
+	void gc() { /* Чтение следующего символа в файле*/
+		int d = fgetc(file_in_program);
+		if (d == EOF) {
+			c = '@';
+		}
+		else {
+			c = d;
+			if (c == '\n') {
+				line++;
+			}
+		}
+	}
+public:
+	Lex get_lex( state CS ); /* Объявление метода класса (,будет считывать и определять тип лексемы) */
+	Scanner(const char * program, state CS) { /* Открытие файла на чтение и присвоение изначаьлных параметров */
+		fopen_s(&file_in_program, program, "r"); 
+
+		/*if (file_in_program == NULL) {
+			cout << "Not open file\n";
+		}*/
+		CS = H;
+		line = 1;
+		clear();
+		gc();
+	}
+	string Desc_Lex(const Lex &L);
+	int get_line() { return line; } 
+};
+
+Lex Scanner::get_lex( state CS ) { /* Реализация метода класса Scanner (распределение по типам) */
+	int d, j;
+	//CS = H;
+	do {
+		switch (CS) {
+		case H: /* Состояние "пустое" */
+			if (isspace(c)) {
+				gc();
+			}
+			else if (isalpha(c)) {
+				clear();
+				add();
+				gc();
+				CS = IDENT;
+			}
+			else if (isdigit(c)) {
+				d = c - '0';
+				gc();
+				CS = NUMB;
+			}
+			else if (c == ':' || c == '<' || c == '>' || c == '=') {
+				clear();
+				add();
+				gc();
+				CS = ALE;
+			}
+			else if (c == '@') {
+				return Lex(LEX_DOG);
+			}
+			else if (c == '!') {
+				clear();
+				add();
+				gc();
+				CS = NEQ;
+			}
+			else if (c == '"') {
+				clear();
+				gc();
+				CS = STR;
+			}
+			else if (c == '/') {
+				clear();
+				add();
+				gc();
+				CS = COM1;
+			}
+			else {
+				CS = DELIM;
+			}
+			break;
+		case IDENT: /* Символ - буква */
+			if (isalpha(c) || isdigit(c)) {
+				add();
+				gc();
+			}
+			else if ((j = look(buf, TW)) != 0) {
+				return Lex(words[j], j);
+			}
+			else {
+				j = TID.put(buf);
+				return Lex(LEX_ID, j);
+			}
+			break;
+		case NUMB: /* Символ - цифра */
+			if (isdigit(c)) {
+				d = d * 10 + (c - '0');
+				gc();
+			}
+			else if (isalpha(c)) {
+				throw c;
+			}
+			else {
+				return Lex(LEX_NUM, d);
+			}
+			break;
+		case COM1: /* либо начало коментария либо деление*/
+			if (c == '*') {
+				gc();
+				CS = COM;
+			}
+			else {
+				j = look(buf, TD);
+				return Lex(dlms[j], j);
+			}
+			break;
+		case COM: /* состояние после начала комментария */
+			gc();
+			if (c == '@') { 
+				throw c;
+			}
+			else if (c == '*'){
+				gc();
+				if (c == '/') {
+					CS = H;
+					gc();
+				}
+			}
+			break;
+		case STR: /* строковая константа */
+			if (c == '\n') {
+				throw 'n';
+			}
+			else if (c == '\\') {
+				gc();
+				add();
+				gc();
+			}
+			else if (c != '"') {
+				add();
+				gc();
+			}
+			else {
+				gc();
+				CS = H;
+				return Lex(LEX_STRING, 0, buf);
+			}
+			break;
+		case ALE: /* Символы :, <, > , = */
+			if (c == '=') {
+				add();
+				gc();
+				j = look(buf, TD);
+				return Lex(dlms[j], j);
+			}
+			else {
+				j = look(buf, TD);
+				return Lex(dlms[j], j);
+			}
+			break;
+		case NEQ: /* отрицание */
+			if (c == '=') {
+				add();
+				gc();
+				j = look(buf, TD);
+				return Lex(LEX_NOTEQ, j);
+			}
+			else {
+				throw '!';
+			}
+			break;
+		case DELIM: /* Арифметические операции */
+			clear();
+			add();
+			if ((j = look(buf, TD)) != 0) {
+				gc();
+				return Lex(dlms[j], j);
+			}
+			else {
+				throw c;
+			}
+			break;
+		default:
+			break;
+		} 
+	} while (true);
+}
+
+string Scanner::Desc_Lex(const Lex& L) {
+	stringstream outs;
+	outs << "(type,val)=";
+	outs << L << " ";
+	TypeOfLex t = L.get_type();
+	switch (t) {
+	case LEX_NULL: outs << "NULL"; break;
+	case LEX_PROG: outs << "Program"; break;
+	case LEX_INT: outs << "int"; break;
+	case LEX_STR: outs << "string"; break;
+	case LEX_IF: outs << "if"; break;
+	case LEX_ELSE: outs << "else"; break;
+	case LEX_WHILE: outs << "while"; break;
+	case LEX_D0: outs << "do"; break;
+	case LEX_CONTINUE: outs << "continue"; break;
+	case LEX_FOR: outs << "for"; break;
+	case LEX_READ: outs << "read"; break;
+	case LEX_WRITE: outs << "write"; break;
+	case LEX_NOT: outs << "not"; break;
+	case LEX_AND: outs << "and"; break;
+	case LEX_OR: outs << "or"; break;
+	case LEX_BOOL: outs << "boolean"; break;
+	case LEX_TRUE: outs << "true"; break;
+	case LEX_FALSE: outs << "false"; break;
+	case LEX_CURL: outs << "{"; break;
+	case LEX_CURR: outs << "}"; break;
+	case LEX_EQ: outs << "="; break;
+	case LEX_PLUS: outs << "+"; break;
+	case LEX_MINUS: outs << "-"; break;
+	case LEX_BRL: outs << "("; break;
+	case LEX_BRR: outs << ")"; break;
+	case LEX_SEMICOLON: outs << ";"; break;
+	case LEX_MUL: outs << "*"; break;
+	case LEX_DIV: outs << "/"; break;
+	case LEX_L: outs << "<"; break;
+	case LEX_G: outs << ">"; break;
+	case LEX_LE: outs << "<="; break;
+	case LEX_GE: outs << ">="; break;
+	case LEX_EQEQ: outs << "=="; break;
+	case LEX_NOTEQ: outs << "!="; break;
+	case LEX_DECIMAL: outs << ","; break;
+	case LEX_DOG: outs << "@"; break;
+	case LEX_NUM: outs << " = " << L.get_value(); break;
+	case LEX_ID: outs << "ID: " << TID[L.get_value()].get_name(); break;
+	case LEX_STRING: outs << "STR, \"" << L.get_value_str() << '"'; break;
+	case LEX_MINUS_UNAR: outs << "LEX_MINUS_UNAR"; break;
+	case POLIZ_LABEL: outs << "POLIZ_LABEL"; break;
+	case POLIZ_ADDRESS: outs << "POLIZ_ADDRESS"; break;
+	case POLIZ_GO: outs << "POLIZ_GO"; break;
+	case POLIZ_FGO: outs << "POLIZ_FGO"; break;
+	case LEX_FIN: break;
+	}
+	return outs.str();
+}
+
+template < class T, int max_size > class Stack { /* NEW! шаблонный класс для стека (необходим тк при ПОЛИЗе мы все пушаем в стек (необходимо чтобы он работал с нашими классами))*/
+	T s[max_size];
+	int top;
+public:
+	Stack() { top = 0; }
+	void reset() { top = 0; }
+	void push(T i);
+	T pop();
+	bool is_empty() { return top == 0; }
+	bool is_full() { return top == max_size; }
+};
+
+template < class T, int max_size > void Stack < T, max_size > ::push(T i) {
+	if (!is_full())
+		s[top++] = i;
+	else
+		throw "Stack_is_full";
+}
+
+template <class T, int max_size > T Stack < T, max_size > ::pop() {
+	if (!is_empty())
+		return s[--top];
+	else
+		throw "Stack_is_empty";
+}
+
+/* 3ий эта. NEW!*/
+
+class Poliz {
+	Lex * p;
+	int size;
+	int free;
+public:
+	Poliz(int max_size) { /* Конструктор (создание 'начальных' условий) */
+		p = new Lex[size = max_size];
+		free = 0;
+	}
+	~Poliz() { delete[] p; } /* Деструктор  */
+	void put_lex(Lex l) { 
+		p[free] = l;
+		free++;
+	}
+	void put_lex(Lex l, int place) { /* заполнение динамического массива для хранения лексем и дальнейшего сопоставления с типами */
+		p[place] = l;
+	} 
+	void update_lex_type(TypeOfLex newtype, int place){
+		p[place].put_type(newtype);
+	}
+	void blank() {
+		free++;
+	}
+	int get_free() { 
+		return free; 
+	}
+	Lex & operator[] (int index) { /* Переопределение [] - для работы с нашими классами*/
+		if (index > size) {
+			throw "POLIZ: out of array";
+		}
+		else if (index > free) {
+			throw "POLIZ: indefinite element of array";
+		}
+		else {
+			return p[index];
+		}
+	}
+	void print();
+};
+
+void Poliz::print() {
+	for (int i = 0; i < free; ++i) {
+		cout << i << ": ";
+		TypeOfLex type = p[i].get_type();
+		int val = p[i].get_value();
+		if (type == LEX_ID) {
+			cout << TID[p[i].get_value()].get_name();
+		}
+		else if (type == LEX_NUM) {
+			cout << val;
+		}
+		else if (type == LEX_BOOL) {
+			cout << p[i].get_value();
+		}
+		else if (type == LEX_STRING) {
+			cout << '"' << p[i].get_value_str() << '"';
+		}
+		else if (type == POLIZ_FGO) {
+			cout << "POLIZ_FGO";
+		}
+		else if (type == POLIZ_GO) {
+			cout << "POLIZ_GO";
+		}
+		else {
+			if (val == 0)
+				cout << p[i].get_type_str();
+			else
+				cout << p[i];
+		}
+		cout << endl;
+	}
+}
+
+class Parser {
+	Lex curr_lex;  /* текущая лексема */
+	TypeOfLex c_type;
+	int c_val;
+	Scanner scan;
+	int cycle_start;
+	Stack < TypeOfLex, 100 >  st_lex;
+	Stack < int, 20 > st_cycle;
+	void start_pc_method(); /*процедуры РС-метода */ /* P() -> проверка на правильность начал ( Prog { (далее запуск проверки введения типов*/
+	void start_inizialization(); /* проверка введения типов */
+	void check_on_end(); /* Ожидание окончания програмы, те ожидание встречи } */
+	void work_with_variable(); /* работа с переменными */
+	void new_line(); /* конец строки (линии в программе) */
+	void S(); /* Основное правило - проверки на проверку работы циклов а также ключевых слов (continue, if, while, read, write, {)*/
+	void ID();
+	void check_on_boolean(); /*  ключевые символы в boolean*/
+	void check_on_arifmetic();  /* выход на алгоритмическое выражение или сравнение выражение */
+	void OR();
+	void AND();
+	void check_on_sum(); /* алгоритмические выражения на +/-*/
+	void check_on_multiplication(); /* алгоритмические веражения на умножение или деление */
+	void dec();
+	bool check_on_base(); /* Проверка 'базовых типов' str, int, boolean */
+	bool symbol_of_logic(); /* символы логических выражений */
+
+	bool compare(TypeOfLex type);
+	bool not_compactible_string(TypeOfLex type);
+	void check_id(); // check if ID declared
+	void check_op(); // check for operand compatibility
+	void check_not();
+	void check_minus_unar();
+	void eq_type();
+	void check_id_in_read();
+
+	void gl() { /* получить очередную лексему */
+		curr_lex = scan.get_lex(CS);
+		c_type = curr_lex.get_type();
+		c_val = curr_lex.get_value();
+		cout << scan.Desc_Lex(curr_lex) << endl;
+	}
+	TypeOfLex var_type;
+	int last_lex;
+public:
+	Poliz prog;
+	Parser(const char *program) : scan(program, CS), prog (1000) {}
+	void analyze(); /* анализатор с действиями */
+};
+
+void Parser::analyze() {
+	gl();
+	start_pc_method(); 
+	prog.print();
+	cout << endl << "Yes!!!" << endl;
+}
+
+void Parser::start_pc_method() {
+	cycle_start = -1;
+	if (c_type != LEX_PROG)
+		throw curr_lex;
+	gl();
+	if (c_type != LEX_CURL)
+		throw curr_lex;
+	gl();
+	start_inizialization();
+	check_on_end();
+	if (c_type != LEX_DOG)
+		throw curr_lex;
+}
+
+void Parser::start_inizialization() {
+	while (check_on_base()) {
+		var_type = c_type;
+		if (var_type == LEX_STR) {
+			var_type = LEX_STRING;
+		}
+		gl();
+		dec();
+		while (c_type == LEX_DECIMAL) {
+			gl();
+			dec();
+		}
+		if (c_type != LEX_SEMICOLON)
+			throw curr_lex;
+		gl();
+	}
+}
+
+void Parser::check_on_end() {
+	while (c_type != LEX_CURR) {
+		S();
+	}
+	gl();
+}
+
+void Parser::S() {
+	int pl0, pl1, pl2, pl3;
+	if (c_type == LEX_CONTINUE) {
+		if (cycle_start == -1)
+			throw "Warning with continue";
+		prog.put_lex(Lex(POLIZ_LABEL, cycle_start));
+		prog.put_lex(Lex(POLIZ_GO));
+		gl();
+		new_line();
+	}
+	else if (c_type == LEX_IF) {
+		gl();
+		if (c_type != LEX_BRL)
+			throw curr_lex;
+		gl();
+		check_on_boolean();
+		if (st_lex.pop() != LEX_BOOL) {
+			throw "Warning with boolean type";
+		}
+		if (c_type != LEX_BRR)
+			throw curr_lex;
+		gl();
+		pl2 = prog.get_free();
+		prog.blank();
+		prog.put_lex(Lex(POLIZ_FGO));
+		S();
+		if (c_type == LEX_ELSE) {
+			pl3 = prog.get_free();
+			prog.blank();
+			prog.put_lex(Lex(POLIZ_GO));
+			prog.put_lex(Lex(POLIZ_LABEL, prog.get_free()), pl2);
+			gl();
+			S();
+			prog.put_lex(Lex(POLIZ_LABEL, prog.get_free()), pl3);
+		}
+		else {
+			prog.put_lex(Lex(POLIZ_LABEL, prog.get_free()), pl2);
+		}
+	}
+	else if (c_type == LEX_WHILE) {
+		pl0 = prog.get_free();
+		st_cycle.push(cycle_start);
+		cycle_start = pl0;
+		gl();
+		if (c_type != LEX_BRL)
+			throw curr_lex;
+		gl();
+		check_on_boolean();
+		if (c_type != LEX_BRR)
+			throw curr_lex;
+		pl1 = prog.get_free();
+		prog.blank();
+		prog.put_lex(Lex(POLIZ_FGO));
+		gl();
+		S();
+		prog.put_lex(Lex(POLIZ_LABEL, pl0));
+		prog.put_lex(Lex(POLIZ_GO));       
+		prog.put_lex(Lex(POLIZ_LABEL, prog.get_free()), pl1);
+		cycle_start = st_cycle.pop();
+	}
+	else if (c_type == LEX_READ) {
+		gl();
+		if (c_type != LEX_BRL)
+			throw curr_lex;
+		gl();
+		if (c_type != LEX_ID)
+			throw curr_lex;
+		check_id_in_read();
+		prog.put_lex(Lex(POLIZ_ADDRESS, c_val));
+		gl();
+		if (c_type != LEX_BRR)
+			throw curr_lex;
+		gl();
+		prog.put_lex(Lex(LEX_READ));
+		new_line();
+	}
+	else if (c_type == LEX_WRITE) {
+		gl();
+		if (c_type != LEX_BRL)
+			throw curr_lex;
+		gl();
+		check_on_boolean();
+		while (c_type == LEX_DECIMAL) {
+			gl();
+			check_on_boolean();
+		}
+		if (c_type != LEX_BRR)
+			throw curr_lex;
+		gl();
+		prog.put_lex(Lex(LEX_WRITE));
+		new_line();
+	}
+	else if (c_type == LEX_CURL) {
+		gl();
+		check_on_end();
+	}
+	else {
+		check_on_boolean();
+		new_line();
+	}
+}
+
+void Parser::check_on_boolean() {
+	if (c_type == LEX_SEMICOLON || c_type == LEX_CURR) {
+		return;
+	}
+	TypeOfLex type, t;
+	OR();
+	if (c_type == LEX_EQ) {
+		if (last_lex != prog.get_free() - 1)
+			throw "= without arguments";
+		prog.update_lex_type(POLIZ_ADDRESS, last_lex);
+		type = c_type;
+		gl();
+		check_on_boolean();
+		t = st_lex.pop();
+		st_lex.push(type);
+		st_lex.push(t);
+		check_op();
+	}
+}
+
+void Parser::new_line() {
+	if (c_type != LEX_SEMICOLON)
+		throw curr_lex;
+	prog.put_lex(Lex(LEX_SEMICOLON));
+	gl();
+}
+
+bool Parser::check_on_base() {
+	return  (c_type == LEX_INT || c_type == LEX_BOOL || c_type == LEX_STR);
+}
+
+void Parser::OR() {
+	AND();
+	while (c_type == LEX_OR) {
+		st_lex.push(c_type);
+		gl();
+		AND();
+		check_op();
+	}
+}
+
+void Parser::AND() {
+	check_on_arifmetic();
+	while (c_type == LEX_AND) {
+		st_lex.push(c_type);
+		gl();
+		check_on_arifmetic();
+		check_op();
+	}
+}
+
+bool Parser::symbol_of_logic() {
+	return (c_type == LEX_EQEQ || c_type == LEX_L || c_type == LEX_G || c_type == LEX_LE || c_type == LEX_GE || c_type == LEX_NOTEQ);
+}
+
+void Parser::check_on_arifmetic() {
+	check_on_sum();
+	if (symbol_of_logic()) {
+		st_lex.push(c_type);
+		gl();
+		check_on_sum();
+		check_op();
+	}
+}
+
+void Parser::check_on_sum() {
+	check_on_multiplication();
+	while (c_type == LEX_PLUS || c_type == LEX_MINUS) {
+		st_lex.push(c_type);
+		gl();
+		check_on_multiplication();
+		check_op();
+	}
+}
+
+void Parser::check_on_multiplication() {
+	work_with_variable();
+	while (c_type == LEX_MUL || c_type == LEX_DIV) {
+		st_lex.push(c_type);
+		gl();
+		work_with_variable();
+		check_op();
+	}
+}
+
+void Parser::dec() {
+	int i = c_val;
+	if (TID[i].get_declare())
+		throw "twice";
+	else {
+		TID[i].put_declare();
+		TID[i].put_type(var_type);
+		gl();
+		if (c_type == LEX_EQ) {
+			gl();
+			if (var_type == LEX_INT) {
+				if (c_type != LEX_NUM) {
+					throw curr_lex;
+				}
+			}
+			if (var_type == LEX_BOOL) {
+				if (c_type != LEX_TRUE && c_type != LEX_FALSE) {
+					throw curr_lex;
+				}
+			}
+			if (var_type == LEX_STRING) {
+				if (c_type != LEX_STRING) {
+					throw curr_lex;
+				}
+			}
+			TID[i].asign_val(curr_lex);
+			gl();
+		}
+	}
+}
+
+void Parser::work_with_variable() {
+	if (c_type == LEX_MINUS) {
+		gl();
+		work_with_variable();
+		check_minus_unar();
+	}
+	else if (c_type == LEX_NOT) {
+		gl();
+		work_with_variable();
+		check_not();
+	}
+	else if (c_type == LEX_ID) {
+		check_id();
+		prog.put_lex(Lex(LEX_ID, c_val));
+		gl();
+	}
+	else if (c_type == LEX_NUM) {
+		st_lex.push(LEX_INT);
+		prog.put_lex(curr_lex);
+		gl();
+	}
+	else if (c_type == LEX_TRUE || c_type == LEX_FALSE) {
+		st_lex.push(LEX_BOOL);
+		prog.put_lex(curr_lex);
+		gl();
+	}
+	else if (c_type == LEX_STRING) {
+		st_lex.push(LEX_STRING);
+		prog.put_lex(curr_lex);
+		gl();
+	}
+	else if (c_type == LEX_BRL) {
+		gl();
+		check_on_boolean();
+		if (c_type != LEX_BRR)
+			throw curr_lex;
+		gl();
+	}
+	else
+		throw curr_lex;
+}
+
+void Parser::check_id() {
+	if (TID[c_val].get_declare()) {
+		TypeOfLex type = TID[c_val].get_type();
+		st_lex.push(type);
+	}
+	else
+		throw "DECLARATION?";
+}
+
+bool Parser::not_compactible_string(TypeOfLex op) {
+	return op == LEX_AND || op == LEX_OR || op == LEX_MUL || op == LEX_DIV || op == LEX_MINUS;
+}
+
+bool Parser::compare(TypeOfLex type) {
+	return type == LEX_EQEQ || type == LEX_L || type == LEX_G || type == LEX_LE || type == LEX_GE || type == LEX_NOTEQ;
+}
+
+void Parser::check_op() {
+	TypeOfLex t1, t2, op, t = LEX_INT, r = LEX_BOOL;
+
+	t2 = st_lex.pop();
+	op = st_lex.pop();
+	t1 = st_lex.pop();
+	if (t1 == LEX_STRING || t2 == LEX_STRING) {
+		if (t1 != t2) {
+			cout << lex_parts[t1] << " " << lex_parts[op] << " " << lex_parts[t2] << endl;
+			throw "Warning with not enough string";
+		}
+		if (not_compactible_string(op)) {
+			throw "Warning % operator";
+		}
+		t = r = LEX_STRING;
+	}
+	else
+		if (op == LEX_PLUS || op == LEX_MINUS || op == LEX_MUL || op == LEX_DIV)
+			r = LEX_INT;
+	if (op == LEX_EQ)
+		r = t1;
+	else
+		if (op == LEX_OR || op == LEX_AND)
+			t = LEX_BOOL;
+	if (compare(op)) {
+		compare(op);
+		r = LEX_BOOL;
+	}
+	if (t1 == t2 && t1 == t)
+		st_lex.push(r);
+	else {
+		cout << t1 << " " << t2 << " " << t;
+		throw "Warnint with types in operation";
+	}
+	prog.put_lex(Lex(op));
+}
+
+void Parser::check_not() {
+	if (st_lex.pop() != LEX_BOOL)
+		throw "Warnint with not";
+	else
+	{
+		st_lex.push(LEX_BOOL);
+		prog.put_lex(Lex(LEX_NOT));
+	}
+}
+
+void Parser::check_minus_unar() {
+	if (st_lex.pop() != LEX_INT)
+		throw "Warning with unar minus";
+	else {
+		st_lex.push(LEX_INT);
+		prog.put_lex(Lex(LEX_MINUS_UNAR));
+	}
+}
+
+void Parser::eq_type() {
+	if (st_lex.pop() != st_lex.pop())
+		throw "Warning with :=";
+}
+
+void Parser::check_id_in_read() {
+	if (!TID[c_val].get_declare())
+		throw "not declared";
+}
+
+// 4ый этап.
+
+class Executer { // Считаем - преобразовываем внутреннее представление программы 
+	Lex poliz_element;
+public:
+	void execute(Poliz & prog);
+};
+
+bool take_string(Stack <Lex, 100> &args, string &s1, string &s2, int &i1, int &i2){
+	Lex lx;
+	lx = args.pop();
+	if (lx.get_type() == LEX_STRING) {
+		s2 = lx.get_value_str();
+		s1 = args.pop().get_value_str();
+		return true;
+	}
+	else {
+		i2 = lx.get_value();
+		i1 = args.pop().get_value();
+		return false;
+	}
+}
+
+void take_ints(Stack<Lex, 100> &args, int &i1, int &i2) {
+	i2 = args.pop().get_value();
+	i1 = args.pop().get_value();
+}
+
+void write(Stack<Lex, 100> &args) {
+	if (!args.is_empty()) {
+		string s = args.pop().get_value_str();
+		write(args);
+		cout << s << endl;
+	}
+}
+
+void Executer::execute(Poliz& prog) { // В стеке если встречается arg, arg и операция, то мы "считаем" эту операцию. (Преобразовываемпеременные или вычисляем логические выражения и тд)
+	Stack<Lex, 100> args;
+	int i1, i2, index = 0, size = prog.get_free();
+	string s1, s2;
+	Lex lx;
+	cout << "In executer!\n";
+	while (index < size) {
+		poliz_element = prog[index];
+		switch (poliz_element.get_type()) {
+		case LEX_TRUE:
+			args.push(1);
+			break;
+		case LEX_FALSE:
+			args.push(0);
+			break;
+		case POLIZ_LABEL:
+			args.push(poliz_element);
+			break;
+		case LEX_ID:
+			int ind;
+			ind = poliz_element.get_value();
+			if (TID[ind].get_assign()) {
+				args.push(TID[ind].gen_lex());
+				break;
+			}
+			else {
+				cout << TID[ind].get_name() << endl;
+				throw "WARNING : indefinitely ID";
+			}
+		case LEX_MINUS_UNAR:
+			args.push(Lex(LEX_NUM, -(args.pop().get_value())));
+			break;
+		case LEX_NOT:
+			args.push(Lex(LEX_NUM, !(args.pop().get_value())));
+			break;
+		case LEX_OR:
+			take_ints(args, i1, i2);
+			args.push(Lex(i1 || i2));
+			break;
+		case LEX_AND:
+			take_ints(args, i1, i2);
+			args.push(i1 && i2);
+			break;
+		case POLIZ_GO:
+			index = args.pop().get_value() - 1;
+			break;
+		case POLIZ_FGO:
+			take_ints(args, i1, i2);
+			if (!i1)
+				index = i2 - 1;
+			break;
+		case LEX_WRITE:
+			write(args);
+			break;
+		case LEX_READ: {
+			int k;
+			i1 = args.pop().get_value();
+			if (TID[i1].get_type() == LEX_INT) {
+				cout << "Input int value for";
+				cout << TID[i1].get_name() << endl;
+				cin >> k;
+			}
+			else if (TID[i1].get_type() == LEX_STRING) {
+				cout << "Input string value";
+				cout << TID[i1].get_name() << endl;
+				cin >> k;
+			}
+			TID[i1].put_value(k);
+			break;
+		}
+		case LEX_PLUS:
+			if (take_string(args, s1, s2, i1, i2)) {
+				args.push(Lex(LEX_STRING, 0, s1 + s2));
+			}
+			else {
+				args.push(i1 + i2);
+			}
+			break;
+		case LEX_MUL:
+			take_ints(args, i1, i2);
+			args.push(i1 * i2);
+			break;
+		case LEX_MINUS:
+			take_ints(args, i1, i2);
+			args.push(i1 - i2);
+			break;
+		case LEX_DIV:
+			take_ints(args, i1, i2);
+			if (i2 == 0)
+				throw "Waraning : /0!";
+			args.push(i1 / i2);
+			break;
+		case LEX_EQEQ:
+			if (take_string(args, s1, s2, i1, i2)) {
+				args.push(s1 == s2);
+			}
+			else {
+				args.push(i1 == i2);
+			}
+			break;
+		case LEX_L:
+			if (take_string(args, s1, s2, i1, i2)) {
+				args.push(s1 < s2);
+			}
+			else {
+				args.push(i1 < i2);
+			}
+			break;
+		case LEX_G:
+			if (take_string(args, s1, s2, i1, i2)) {
+				args.push(s1 > s2);
+			}
+			else {
+				args.push(i1 > i2);
+			}
+			break;
+		case LEX_LE:
+			take_ints(args, i1, i2);
+			args.push(i1 <= i2);
+			break;
+		case LEX_GE:
+			take_ints(args, i1, i2);
+			args.push(i1 >= i2);
+			break;
+		case LEX_NOTEQ:
+			if (take_string(args, s1, s2, i1, i2)) {
+				args.push(s1 != s2);
+			}
+			else {
+				args.push(i1 != i2);
+			}
+			break;
+		case LEX_SEMICOLON:
+			args.reset();
+			break;
+		case LEX_EQ:
+			lx = args.pop();
+			i2 = args.pop().get_value();
+			TID[i2].asign_val(lx);
+			break;
+		default:
+			cout << type_to_str(poliz_element.get_type()) << endl;
+			throw "WARNING : ???\n";
+		}
+		++index;
+	};
+	cout << "After executer!" << endl;
+}
+
+class Interpretator { //Общий класс для запуска программы 
+	Parser pars;
+	Executer Exec;
+public:
+	Interpretator(const char* program): pars(program) {};
+	void interpretator();
+};
+void Interpretator::interpretator() { // Переходим на выполнения предыдущих этапов а затем преобразуем полиз
+	pars.analyze();
+	Exec.execute(pars.prog);
+}
+
+int main() {
+	cout << "START \n";
+	try {
+		Interpretator I("TextForLa.txt");
+		I.interpretator();
+	}
+	catch (char c) {
+		cout << "ERROR (char): '" << c << "'\n";
+	}
+	catch (const char *s) {
+		cout << "ERROR (char*): " << s << endl;
+	}
+	catch (const Lex&lx) {
+		cout << "*" << "unexpected lexem" << "*" << endl;
+		cout << lx << endl;
+	}
+	cout << "Back in Main\n";
+	return 0;
+}
