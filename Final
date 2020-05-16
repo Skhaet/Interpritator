@@ -286,10 +286,9 @@ int TablIdent::put(const char *buf) { /* Реализация метода кл�
 
 TablIdent TID(100);
 
-enum state { H, IDENT, NUMB, COM1, COM, ALE, DELIM, NEQ, STR };
-state CS; 
-
 class Scanner { /* Класс реализующий считывание и идентификацию литер */
+	enum state { H, IDENT, NUMB, COM1, COM, ALE, DELIM, NEQ, STR };
+	state CS; 
 	FILE * file_in_program;
 	char c;
 	char buf[80];
@@ -346,9 +345,9 @@ public:
 
 Lex Scanner::get_lex( state CS ) { /* Реализация метода класса Scanner (распределение по типам) */
 	int d, j;
-	//CS = H;
+	state initial_state=CS;
 	do {
-		switch (CS) {
+		switch (initia;_state) {
 		case H: /* Состояние "пустое" */
 			if (isspace(c)) {
 				gc();
@@ -443,23 +442,21 @@ Lex Scanner::get_lex( state CS ) { /* Реализация метода клас
 			}
 			break;
 		case STR: /* строковая константа */
-			if (c == '\n') {
+			switch (c) {
+			case '\n':
 				throw 'n';
-			}
-			else if (c == '\\') {
+				break;
+			case '\\':
 				gc();
-				add();
-				gc();
-			}
-			else if (c != '"') {
-				add();
-				gc();
-			}
-			else {
+				break;
+			case '"':
 				gc();
 				CS = H;
 				return Lex(LEX_STRING, 0, buf);
+				break;
 			}
+			add();
+			gc();
 			break;
 		case ALE: /* Символы :, <, > , = */
 			if (c == '=') {
@@ -629,25 +626,26 @@ void Poliz::print() {
 		cout << i << ": ";
 		TypeOfLex type = p[i].get_type();
 		int val = p[i].get_value();
-		if (type == LEX_ID) {
+		switch (type) {
+		case LEX_ID :
 			cout << TID[p[i].get_value()].get_name();
-		}
-		else if (type == LEX_NUM) {
+			break;
+		case LEX_NUM :
 			cout << val;
-		}
-		else if (type == LEX_BOOL) {
+			break;
+		case LEX_BOOL:
 			cout << p[i].get_value();
-		}
-		else if (type == LEX_STRING) {
+			break;
+		case LEX_STRING:
 			cout << '"' << p[i].get_value_str() << '"';
-		}
-		else if (type == POLIZ_FGO) {
+			break;
+		case POLIZ_FGO :
 			cout << "POLIZ_FGO";
-		}
-		else if (type == POLIZ_GO) {
+			break;
+		case POLIZ_GO :
 			cout << "POLIZ_GO";
-		}
-		else {
+			break;
+		default:
 			if (val == 0)
 				cout << p[i].get_type_str();
 			else
@@ -970,45 +968,52 @@ void Parser::dec() {
 }
 
 void Parser::work_with_variable() {
-	if (c_type == LEX_MINUS) {
+	switch (c_type) {
+	case LEX_MINUS:
 		gl();
 		work_with_variable();
 		check_minus_unar();
-	}
-	else if (c_type == LEX_NOT) {
+		break;
+	case LEX_NOT:
 		gl();
 		work_with_variable();
 		check_not();
-	}
-	else if (c_type == LEX_ID) {
+		break;
+	case LEX_ID:
 		check_id();
 		prog.put_lex(Lex(LEX_ID, c_val));
 		gl();
-	}
-	else if (c_type == LEX_NUM) {
+		break;
+	case LEX_NUM:
 		st_lex.push(LEX_INT);
 		prog.put_lex(curr_lex);
 		gl();
-	}
-	else if (c_type == LEX_TRUE || c_type == LEX_FALSE) {
+		break;
+	case LEX_TRUE:
 		st_lex.push(LEX_BOOL);
 		prog.put_lex(curr_lex);
 		gl();
-	}
-	else if (c_type == LEX_STRING) {
+		break;
+	case LEX_FALSE:
+		st_lex.push(LEX_BOOL);
+		prog.put_lex(curr_lex);
+		gl();
+		break;
+	case LEX_STRING:
 		st_lex.push(LEX_STRING);
 		prog.put_lex(curr_lex);
 		gl();
-	}
-	else if (c_type == LEX_BRL) {
+		break;
+	case LEX_BRL:
 		gl();
 		check_on_boolean();
 		if (c_type != LEX_BRR)
 			throw curr_lex;
 		gl();
-	}
-	else
+		break;
+	default:
 		throw curr_lex;
+	}
 }
 
 void Parser::check_id() {
